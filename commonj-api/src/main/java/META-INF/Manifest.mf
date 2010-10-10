@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+
+Name: commonj/work, commonj/timers
+Extension-name: commonj.work, commonj.timers
+Specification-Title: CommonJ Timer and Work Manager for Application Servers
+Specification-Version: 1.1
+Specification-Vendor: IBM Corp. and BEA Systems, Inc.
+

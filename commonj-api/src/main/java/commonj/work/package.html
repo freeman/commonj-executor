@@ -1,0 +1,300 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=windows-1252">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 1.1.0  (Win32)">
+	<META NAME="CREATED" CONTENT="20031023;17384206">
+	<META NAME="CHANGED" CONTENT="20031114;15324754">
+</HEAD>
+<BODY LANG="en-US" BGCOLOR="#ffffff" DIR="LTR">
+<P>Provides for the full support of application controlled threading.
+</P>
+<H3>Required jars</H3>
+<P>Applications using these APIs should have the commonj-twm.jar on
+their build path. This is the jar that contains these APIs. 
+</P>
+<H2>Java<SUP>TM</SUP> Beans with Java<SUP>TM</SUP> 2 Enterprise
+Edition (J2EE) Context (context beans)</H2>
+<P>A context bean is a Java object or EJB that can be executed
+asynchronously by a J2EE application. The bean runs using the J2EE
+context of its creator. So, for example, it can run using the J2EE
+security context of the creator J2EE component. It can also run with
+copies of the other J2EE and other vendor specific contexts such as: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0cm">Security 
+	</P>
+	<LI><P STYLE="margin-bottom: 0cm">Component meta data 
+	</P>
+	<LI><P STYLE="margin-bottom: 0cm">Context Class loader 
+	</P>
+	<LI><P>Vendor specific contexts 
+	</P>
+</UL>
+<P>There are several types of context beans: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0cm">Work<BR>This is an object which
+	implements the commonj.work.Work interface. This can be run in
+	parallel with it's caller using the WorkManager.scheduleWork method.
+		</P>
+	<LI><P STYLE="margin-bottom: 0cm">WorkListener<BR>This is a listener
+	callback that is executed within the local JVM as a Work progresses
+	through execution. 
+	</P>
+	<LI><P>TimerListener<BR>This is a transient timer that is executed
+	within the local JVM. It is not persistent and not transactional. If
+	the JVM fails or exits then any pending Timers are lost. 
+	</P>
+</UL>
+<H3>EJBs as context beans.</H3>
+<P>A context bean can be a Java object or a stateless local session
+bean. If an EJB is used then a reference to the local stub for the
+EJB instance must be provided. This means the EJB local interface
+should extend one of the above interfaces. A remote interface to an
+EJB cannot be used as the methods on Work, TimerListener and
+WorkListener are not compatible with a remote methods. The
+application should then look up the local home of this EJB, create an
+instance and then supply this instance to the async beans APIs or use
+the getEJBLocalObject method to get a reference to 'this'. It is not
+permissible to pass 'this' when inside an EJB bean to any method
+taking a context bean reference. This will result in an
+IllegalArgumentException. Only a local stub for an EJB or a Java Bean
+is allowable. EJBs cannot be used with remote WorkManagers. Only
+JavaBeans are permissable with remote WorkManagers. 
+</P>
+<H2>Context beans programming model</H2>
+<P>These sections describe the programming model around the context
+beans runtime. This is very close to the normal J2EE programming
+model. 
+</P>
+<H3>Transactions</H3>
+<P>Every context bean method is called using an unspecified
+transaction. This is very similar to container-managed transactions
+in a normal EJB when TX_NOT_SUPPORTED is specified. If the context
+bean needs to make a global transaction then it should look up
+java:comp/UserTransaction and start one explicitly.</P>
+<P>If the method starts its own global transaction and the context
+bean method didn't commit this global transaction then the global
+transaction is rolled back when the method returns whether it throws
+an exception or not. 
+</P>
+<H3>Access to J2EE component Meta data</H3>
+<P>The J2EE component meta-data of the creating component is
+available to the context bean when it's a simple Java object.
+Obviously, if the context bean is a J2EE component such as a session
+bean then this is the Meta data which is active when a method is
+called.</P>
+<P>However, when the object is a simple Java object then it is
+allowed to lookup the java:comp name space like it's creator would.
+This allows it to lookup connection factories and EJBs in the normal
+J2EE way. The environment properties of the creating component are
+also available. The java:comp name space is actually identical to the
+one available to the creating component. All connection factories use
+the same resource sharing scope as the creating component also. 
+</P>
+<H3>Connection Management</H3>
+<P>The method is free to use the java:comp resource-refs declared by
+it's creating J2EE component and use those connections. However, it
+must do this using a get/use/close pattern. No connection caching
+between method calls on the async bean. The connection factories
+them-selves can be cached but the connections must be gotten on every
+method call, used and then closed. 
+</P>
+<H3>Which 'sticky' J2EE contexts are kept.</H3>
+<P>By default, all are made sticky. However, a customer may want
+context beans to inherit some of the J2EE contexts from the creating
+component. The following J2EE contexts can be made sticky: 
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0cm">Vendor specific contexts 
+	</P><LI><P STYLE="margin-bottom: 0cm">Context class loader. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0cm">Security. 
+	</P>
+	<LI><P>Component Meta Data.<BR>This only is relevant when the
+	context bean is a simple Java object. If it's an EJB then the
+	EJBs meta data is what&rsquo;s active. 
+	</P>
+</UL>
+<P>The application server vendor may provide a vendor specific
+declarative mechanism for enabling/disabling contexts for an
+application. 
+</P>
+<H3>Context Beans: Simple Java objects or EJBs.</H3>
+<P STYLE="margin-bottom: 0cm">A context bean can be either a Java
+object or a full blown EJB. Applications that are comfortable with
+the servlet only approach may find the Java object approach to be
+most desirable. Applications more comfortable with EJBs may elect to
+use context beans implemented with local stateless session beans.
+There are several differences in behavior between the two choices.
+The following table summarizes them: 
+</P>
+<TABLE BORDER=1 CELLPADDING=2 CELLSPACING=2>
+	<TR>
+		<TH>
+			<P>Question</P>
+		</TH>
+		<TH>
+			<P>Answer for Java beans</P>
+		</TH>
+		<TH>
+			<P>Answer for EJB</P>
+		</TH>
+	</TR>
+	<TR>
+		<TD>
+			<P>Remoteable</P>
+		</TD>
+		<TD>
+			<P>Yes</P>
+		</TD>
+		<TD>
+			<P>No</P>
+		</TD>
+	</TR>
+	<TR>
+		<TD>
+			<P>Transactions</P>
+		</TD>
+		<TD>
+			<P>java:comp/UserTransaction is available if a global transaction
+			is required.</P>
+		</TD>
+		<TD>
+			<P>The support is what is specified by the descriptor for the EJB
+			and the J2EE specification.</P>
+		</TD>
+	</TR>
+	<TR>
+		<TD>
+			<P>Security</P>
+		</TD>
+		<TD>
+			<P>The credentials on the thread that created the async bean are
+			used when the bean is invoked.</P>
+		</TD>
+		<TD>
+			<P>The credentials on the thread that created the async bean are
+			used, however, the descriptor for the bean can override this with
+			the run as role attribute.</P>
+		</TD>
+	</TR>
+	<TR>
+		<TD>
+			<P>Java:comp</P>
+		</TD>
+		<TD>
+			<P>The Java:comp of the component that created the context bean
+			are always available to the context bean.</P>
+		</TD>
+		<TD>
+			<P>The java:comp of the creating component is ignored. The
+			java:comp of the EJB is always used.</P>
+		</TD>
+	</TR>
+</TABLE>
+<H3>When is the J2EE context remembered</H3>
+<P STYLE="margin-bottom: 0cm">When we talk about creating an context
+bean, this doesn&rsquo;t mean when we 'new'ed the actual Java object
+or EJB that we want to use an as async bean. Instead, creation is
+when we pass the object to the work or timer runtime. The following
+table lists the methods that capture the J2EE context and thus create
+an context bean. 
+</P>
+<TABLE BORDER=1 CELLPADDING=2 CELLSPACING=2>
+	<TR>
+		<TH>
+			<P>Method</P>
+		</TH>
+		<TH>
+			<P>Description</P>
+		</TH>
+	</TR>
+	<TR>
+		<TD>
+			<P>WorkManager.scheduleWork</P>
+		</TD>
+		<TD>
+			<P>Start a context bean on another thread. If a WorkListener is
+			specified then the same context is used when making calls to it.</P>
+		</TD>
+	</TR>
+	<TR>
+		<TD>
+			<P>TimerManager.schedule</P>
+		</TD>
+		<TD>
+			<P>Run the context bean when the timer expires.</P>
+		</TD>
+	</TR>
+</TABLE>
+<P>All of these methods remember the J2EE context when they are
+called by an application. It is this J2EE context that is used when
+the context bean is invoked later. The J2EE context when the context
+bean was newed by the application is not important. It is only when
+the object is passed to one of the above methods that the J2EE
+context is remembered. 
+</P>
+<H3>Copyright Notice</H3>
+<P LANG="en"><FONT SIZE=2 STYLE="font-size: 9pt"><FONT SIZE=2>&copy;
+Copyright BEA Systems, Inc. and International Business</FONT>
+<FONT SIZE=2>Machines Corp 2003-2004. All rights reserved.</FONT></FONT></P>
+<H3>License</H3>
+<P LANG="en">The Timer and Work Manager for Application Servers Specification
+is being provided by the copyright holders under the following
+license. By using and/or copying this work, you agree that you have
+read, understood and will comply with the following terms and
+conditions:</P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>Permission to
+copy and display the Timer and Work Manager for Application Servers
+Specification and/or portions thereof, without modification, in any
+medium without fee or royalty is hereby granted, provided that you
+include the following on ALL copies of the Timer and Work Manager for
+Application Servers Specification, or portions thereof, that you
+make:</FONT></FONT></P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>1.&nbsp; A link
+or URL to the Timer and Work Manager for Application Servers Specification at
+this location:&nbsp; </FONT></FONT>
+</P>
+<P><A HREF="http://dev2dev.bea.com/technologies/commonj/index.jsp"><FONT FACE="Times New Roman, serif">http://dev2dev.bea.com/technologies/commonj/index.jsp</FONT></A></P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>or at this
+location:</FONT></FONT></P>
+<P><A HREF="http://www.ibm.com/developerworks/library/commonj-sdowmt/"><FONT FACE="Times New Roman, serif">http://www.ibm.com/developerworks/library/j-commonj-sdowmt/</FONT></A></P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>2. The full text
+of this copyright notice as shown in the Timer and Work Manager for Application
+Servers Specification.</FONT></FONT></P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>IBM and BEA
+(collectively, the &ldquo;Authors&rdquo;) agree to grant you a
+royalty-free license, under reasonable, non-discriminatory terms and
+conditions to patents that they deem necessary to implement the Work
+Manager for Application Servers Specification.</FONT></FONT></P>
+<P LANG="en-GB"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif"><FONT SIZE=3>THE
+Timer and Work Manager for Application Servers SPECIFICATION IS PROVIDED &quot;AS
+IS,&quot; AND THE AUTHORS MAKE NO REPRESENTATIONS OR WARRANTIES,
+EXPRESS OR IMPLIED, REGARDING THIS SPECIFICATION AND THE
+IMPLEMENTATION OF ITS CONTENTS, INCLUDING, BUT NOT LIMITED TO,
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+NON-INFRINGEMENT OR TITLE.</FONT></FONT></FONT></P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>THE AUTHORS WILL
+NOT BE LIABLE FOR ANY DIRECT, INDIRECT, SPECIAL, INCIDENTAL OR
+CONSEQUENTIAL DAMAGES ARISING OUT OF OR RELATING TO ANY USE OR
+DISTRIBUTION OF THE Timer and Work Manager for Application Servers
+SPECIFICATION.</FONT></FONT></P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>The name and
+trademarks of the Authors may NOT be used in any manner, including
+advertising or publicity pertaining to the Timer and Work Manager for
+Application Servers Specification or its contents without specific,
+written prior permission. Title to copyright in the Timer and Work Manager for
+Application Servers Specification will at all times remain with the
+Authors.</FONT></FONT></P>
+<P><FONT FACE="Times New Roman, serif"><FONT SIZE=3>No other rights
+are granted by implication, estoppel or otherwise.</FONT></FONT></P>
+<P><BR><BR>
+</P>
+<H3>Trademarks</H3>
+<P>Java and all Java-based trademarks are trademarks of Sun
+Microsystems, Inc. in the United States, other countries, or both.</P>
+</BODY>
+</HTML>
